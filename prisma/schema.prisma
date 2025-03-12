@@ -1,0 +1,310 @@
+// prisma/schema.prisma
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL") // Use environment variable to store the connection URL
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model ClientConfiguration {
+  uuid       String   @id @default(uuid()) // UUID as a unique field
+  clientName String
+  salesTax   Decimal
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Person {
+  uuid        String     @id @default(uuid()) // UUID as a unique field
+  firstName   String
+  lastName    String
+  email       String     @unique
+  phoneNumber String?    @unique
+  dateOfBirth DateTime?
+  address     String?
+  gender      String?
+  nationality String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  LtmsUser    LtmsUser[]
+}
+
+model LtmsUser {
+  uuid             String                  @id @default(uuid()) // UUID as a unique field
+  username         String                  @unique
+  email            String                  @unique
+  loginStatus      String                  @default("ENABLED")
+  approvalStatus   String                  @default("PENDING")
+  passwordHash     String
+  Person           Person                  @relation(fields: [personUuid], references: [uuid])
+  personUuid       String                  @unique //fk to person uuid
+  UserRole         UserRole?               @relation(fields: [userRoleUuid], references: [uuid])
+  userRoleUuid     String
+  departmentUuid   String?
+  Department       OrganisationDepartment? @relation(fields: [departmentUuid], references: [uuid])
+  groups           UserGroupMember[]
+  letters          LetterRequest[]         @relation("LetterSender")
+  logs             Log[]
+  notifications    Notification[]
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+  RecipientsMaster RecipientsMaster[]      @relation(name: "UserPerosnofrecipient")
+  // LetterTicket     LetterTicket[]
+
+  LetterTicket LetterTicket[] @relation(name: "userCreatingTicket")
+
+  DraftedLetterRequest DraftedLetterRequest[] @relation("LetterSender")
+
+  UserPermissions UserPermission[] @relation(name: "LtmsUserToUserPermission")
+}
+
+model UserRole {
+  uuid                   String                  @id @default(uuid()) // UUID as a unique field
+  codeName               String                  @unique
+  name                   String                  @unique
+  description            String?
+  users                  LtmsUser[]
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  DefaultRolePermissions DefaultRolePermission[]
+}
+
+model PermissionMaster {
+  uuid           String           @id @default(uuid()) // UUID as a unique field
+  codeName       String           @unique
+  commonName     String           @unique
+  category       String
+  description    String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  UserPermission UserPermission[] @relation(name: "PermissionMasterToUserPermission")
+}
+
+model UserPermission {
+  uuid             String           @id @default(uuid()) // UUID as a unique field
+  userUuid         String
+  permissionUuid   String
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  PermissionMaster PermissionMaster @relation(name: "PermissionMasterToUserPermission", fields: [permissionUuid], references: [uuid])
+  LtmsUser         LtmsUser         @relation(name: "LtmsUserToUserPermission", fields: [userUuid], references: [uuid])
+}
+
+model DefaultRolePermission {
+  uuid           String   @id @default(uuid()) // UUID as a unique field
+  userRoleUuid   String
+  permissionUuid String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  UserRole       UserRole @relation(fields: [userRoleUuid], references: [uuid])
+}
+
+//organisation
+model OrganisationDepartment {
+  uuid         String          @id @default(uuid())
+  name         String          @unique
+  activeStatus Boolean         @default(false)
+  description  String
+  Users        LtmsUser[]
+  Letters      LetterRequest[] @relation("LetterDepartment")
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  RecipientsMaster RecipientsMaster[] @relation(name: "Departmentofrecipient")
+
+  DraftedLetterRequest DraftedLetterRequest[] @relation("LetterDepartment")
+}
+
+model DepartmentRole {
+  uuid        String   @id @default(uuid()) // UUID as a unique field
+  name        String   @unique
+  description String?
+  // users       LtmsUser[]
+  // permissions Permission[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model LetterCategory {
+  uuid        String          @id @default(uuid()) // UUID as a unique field
+  name        String
+  description String?
+  isretired   Boolean         @default(false)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  Letter      LetterRequest[]
+
+  DraftedLetterRequest DraftedLetterRequest[]
+}
+
+//letter request
+model LetterRequest {
+  uuid                 String                 @id @default(uuid())
+  externalReference    String?
+  subject              String
+  body                 String                 @db.Text
+  letterIsArchived     Boolean                @default(false)
+  senderType           String
+  rootLetterUuid       String? // Nullable to allow root letters
+  RootLetter           LetterRequest?         @relation("RootChild", fields: [rootLetterUuid], references: [uuid])
+  parentLetterUuid     String? // Nullable to allow parent letters
+  ParentLetter         LetterRequest?         @relation("ParentChild", fields: [parentLetterUuid], references: [uuid])
+  letterCategoryUuid   String
+  LetterCategory       LetterCategory         @relation(fields: [letterCategoryUuid], references: [uuid])
+  senderUserUuid       String
+  SenderUser           LtmsUser               @relation("LetterSender", fields: [senderUserUuid], references: [uuid])
+  senderDepartmentUuid String
+  SenderDepartment     OrganisationDepartment @relation("LetterDepartment", fields: [senderDepartmentUuid], references: [uuid])
+  Attachments          Attachment[]
+  Logs                 Log[]
+  LetterRecipients     LetterRecipient[]      @relation(name: "LetterstoRecipients")
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  LetterTicket         LetterTicket[]         @relation(name: "LetterTicket")
+  ParentChildLetters   LetterRequest[]        @relation("ParentChild") // One-to-many self-relation
+  RootChildLetters     LetterRequest[]        @relation("RootChild")
+}
+
+model DraftedLetterRequest {
+  uuid                 String                 @id @default(uuid())
+  externalReference    String?
+  subject              String?
+  body                 String?
+  confidentiality      String?
+  senderType           String?
+  letterCategoryUuid   String?
+  LetterCategory       LetterCategory?        @relation(fields: [letterCategoryUuid], references: [uuid])
+  senderUserUuid       String
+  SenderUser           LtmsUser               @relation("LetterSender", fields: [senderUserUuid], references: [uuid])
+  senderDepartmentUuid String
+  SenderDepartment     OrganisationDepartment @relation("LetterDepartment", fields: [senderDepartmentUuid], references: [uuid])
+  Attachments          Attachment[]
+  Logs                 Log[]
+  LetterRecipients     LetterRecipient[]      @relation(name: "LetterstoRecipients")
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+}
+
+model RecipientsMaster {
+  uuid                String                  @id @default(uuid()) // UUID as a unique field
+  departmentUuid      String
+  userPersonUuid      String?                 @unique
+  recipientType       String
+  isActive            Boolean                 @default(true)
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+  DepartmentRecipient OrganisationDepartment? @relation(name: "Departmentofrecipient", fields: [departmentUuid], references: [uuid])
+  UserPersonRecipient LtmsUser?               @relation(name: "UserPerosnofrecipient", fields: [userPersonUuid], references: [uuid])
+  LetterRecipients    LetterRecipient[]
+}
+
+model LetterRecipient {
+  uuid                 String                 @id @default(uuid()) // UUID as a unique field
+  letterUuid           String
+  recipientUuid        String
+  status               String
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  Letter               LetterRequest          @relation(name: "LetterstoRecipients", fields: [letterUuid], references: [uuid])
+  RecipientMaster      RecipientsMaster       @relation(fields: [recipientUuid], references: [uuid])
+  DraftedLetterRequest DraftedLetterRequest[] @relation(name: "LetterstoRecipients")
+
+  @@unique([letterUuid, recipientUuid]) // Composite primary key
+}
+
+model Attachment {
+  id             String        @id @default(uuid())
+  letterUuid     String
+  letter         LetterRequest @relation(fields: [letterUuid], references: [uuid])
+  fileUrl        String
+  fileType       String
+  systemFileName String
+  userFileName   String
+
+  createdAt DateTime @default(now())
+
+  DraftedLetterRequest DraftedLetterRequest[]
+}
+
+model LetterTicket {
+  uuid                    String        @id @default(uuid()) // UUID as a unique field
+  letterUuid              String        @unique
+  userCreatingTicketUuuid String
+  ticketNumber            String        @unique
+  ticketClosed            Boolean       @default(false)
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+  Letter                  LetterRequest @relation(name: "LetterTicket", fields: [letterUuid], references: [uuid])
+  UserCreating            LtmsUser      @relation(name: "userCreatingTicket", fields: [userCreatingTicketUuuid], references: [uuid])
+}
+
+model UserGroup {
+  uuid    String            @id @default(uuid())
+  name    String            @unique
+  members UserGroupMember[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model UserGroupMember {
+  id        String    @id @default(uuid())
+  userUuid  String
+  user      LtmsUser  @relation(fields: [userUuid], references: [uuid])
+  groupUuid String
+  group     UserGroup @relation(fields: [groupUuid], references: [uuid])
+}
+
+enum LetterStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  FORWARDED
+  COMPLETED
+}
+
+//Notifications
+model NotificationMaster {
+  uuid               String         @id @default(uuid())
+  codeName           String         @unique
+  commonName         String         @unique
+  description        String?
+  isEnabled          Boolean        @default(true)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  ChildNotifications Notification[] @relation(name: "NotificationMasterToNotificationItem")
+}
+
+model Notification {
+  uuid                   String              @id @default(uuid())
+  userUuid               String
+  UserToNotify           LtmsUser            @relation(fields: [userUuid], references: [uuid])
+  message                String
+  read                   Boolean             @default(false)
+  notificationMasterUuid String
+  sentAt                 DateTime            @default(now())
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
+  NotificationMaster     NotificationMaster? @relation(name: "NotificationMasterToNotificationItem", fields: [notificationMasterUuid], references: [uuid])
+}
+
+enum NotificationType {
+  EMAIL
+  SMS
+  SYSTEM
+}
+
+model Log {
+  id         String        @id @default(uuid())
+  letterUuid String
+  letter     LetterRequest @relation(fields: [letterUuid], references: [uuid])
+  userUuid   String
+  user       LtmsUser      @relation(fields: [userUuid], references: [uuid])
+  action     String
+
+  createdAt DateTime @default(now())
+
+  DraftedLetterRequest DraftedLetterRequest[]
+}
