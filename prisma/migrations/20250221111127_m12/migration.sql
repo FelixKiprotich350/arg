@@ -1,2 +1,0 @@
--- AlterTable
-ALTER TABLE `LetterRequest` ADD COLUMN `senderType` VARCHAR(191) NOT NULL DEFAULT 'DEPARTMENT';

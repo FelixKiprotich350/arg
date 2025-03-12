@@ -1,310 +1,381 @@
-// prisma/schema.prisma
+generator client {
+    provider = "prisma-client-js"
+}
 
 datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL") // Use environment variable to store the connection URL
-}
-
-generator client {
-  provider = "prisma-client-js"
-}
-
-model ClientConfiguration {
-  uuid       String   @id @default(uuid()) // UUID as a unique field
-  clientName String
-  salesTax   Decimal
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+    provider = "mysql"
+    url      = env("DATABASE_URL")
 }
 
 model Person {
-  uuid        String     @id @default(uuid()) // UUID as a unique field
-  firstName   String
-  lastName    String
-  email       String     @unique
-  phoneNumber String?    @unique
-  dateOfBirth DateTime?
-  address     String?
-  gender      String?
-  nationality String?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  LtmsUser    LtmsUser[]
-}
-
-model LtmsUser {
-  uuid             String                  @id @default(uuid()) // UUID as a unique field
-  username         String                  @unique
-  email            String                  @unique
-  loginStatus      String                  @default("ENABLED")
-  approvalStatus   String                  @default("PENDING")
-  passwordHash     String
-  Person           Person                  @relation(fields: [personUuid], references: [uuid])
-  personUuid       String                  @unique //fk to person uuid
-  UserRole         UserRole?               @relation(fields: [userRoleUuid], references: [uuid])
-  userRoleUuid     String
-  departmentUuid   String?
-  Department       OrganisationDepartment? @relation(fields: [departmentUuid], references: [uuid])
-  groups           UserGroupMember[]
-  letters          LetterRequest[]         @relation("LetterSender")
-  logs             Log[]
-  notifications    Notification[]
-  createdAt        DateTime                @default(now())
-  updatedAt        DateTime                @updatedAt
-  RecipientsMaster RecipientsMaster[]      @relation(name: "UserPerosnofrecipient")
-  // LetterTicket     LetterTicket[]
-
-  LetterTicket LetterTicket[] @relation(name: "userCreatingTicket")
-
-  DraftedLetterRequest DraftedLetterRequest[] @relation("LetterSender")
-
-  UserPermissions UserPermission[] @relation(name: "LtmsUserToUserPermission")
+    uuid        String    @id @default(uuid()) // Changed from uuid
+    firstName   String
+    lastName    String
+    email       String    @unique
+    phone       String?   @unique // Shortened phoneNumber to phone
+    birthDate   DateTime?
+    address     String?
+    gender      String?
+    nationality String?
+    createdAt   DateTime  @default(now())
+    updatedAt   DateTime  @updatedAt
+    user        Arguser?
 }
 
 model UserRole {
-  uuid                   String                  @id @default(uuid()) // UUID as a unique field
-  codeName               String                  @unique
-  name                   String                  @unique
-  description            String?
-  users                  LtmsUser[]
-  createdAt              DateTime                @default(now())
-  updatedAt              DateTime                @updatedAt
-  DefaultRolePermissions DefaultRolePermission[]
+    uuid        String    @id @default(uuid())
+    codeName    String
+    commonName  String    @db.VarChar(255)
+    description String?   @db.Text
+    created_at  DateTime? @db.Timestamp(0)
+    updated_at  DateTime? @db.Timestamp(0)
+    users       Arguser[]
 }
 
+model Arguser {
+    uuid                String                @id @default(uuid())
+    userName            String                @unique
+    accountStatus       String                @default("ENABLED")
+    approvalStatus      String                @default("PENDING")
+    passwordHash        String
+    Person              Person                @relation(fields: [personUuid], references: [uuid])
+    personUuid          String                @unique //fk to person uuid
+    UserRole            UserRole?             @relation(fields: [userRoleUuid], references: [uuid])
+    userRoleUuid        String
+    departmentUuid      String?
+    createdAt           DateTime              @default(now())
+    updatedAt           DateTime              @updatedAt
+    pfNo                String
+    isSuperAdmin        Boolean               @default(false)
+    email_verified_at   DateTime?             @db.Timestamp(0)
+    remember_token      String?
+    NotifiableUsers     NotifiableUser[]
+    ResearchFundings    ResearchFunding[]
+    ResearchProgress    ResearchProgress[]
+    ResearchProjects    ResearchProject[]
+    SupervisionProgress SupervisionProgress[]
+    UserPermissions     UserPermission[]
+}
+
+model PasswordReset {
+    email      String    @id @db.VarChar(255)
+    token      String    @db.VarChar(255)
+    created_at DateTime? @db.Timestamp(0)
+}
+
+model personal_access_tokens {
+    id             BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+    tokenable_type String    @db.VarChar(255)
+    tokenable_id   BigInt    @db.UnsignedBigInt
+    name           String    @db.VarChar(255)
+    token          String
+    abilities      String?   @db.Text
+    last_used_at   DateTime? @db.Timestamp(0)
+    expires_at     DateTime? @db.Timestamp(0)
+    created_at     DateTime? @db.Timestamp(0)
+    updated_at     DateTime? @db.Timestamp(0)
+}
+
+//Permissions
 model PermissionMaster {
-  uuid           String           @id @default(uuid()) // UUID as a unique field
-  codeName       String           @unique
-  commonName     String           @unique
-  category       String
-  description    String?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  UserPermission UserPermission[] @relation(name: "PermissionMasterToUserPermission")
+    uuid              String           @id @db.Char(36)
+    codeName          String           @db.VarChar(255)
+    commonName        String
+    path              String           @db.VarChar(255)
+    priorityNo        Int
+    permissionLevel   Int
+    targetRole        Int
+    isSuperAdminRight Boolean          @default(false)
+    description       String?          @db.Text
+    created_at        DateTime?        @db.Timestamp(0)
+    updated_at        DateTime?        @db.Timestamp(0)
+    UserPermissions   UserPermission[]
 }
 
 model UserPermission {
-  uuid             String           @id @default(uuid()) // UUID as a unique field
-  userUuid         String
-  permissionUuid   String
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
-  PermissionMaster PermissionMaster @relation(name: "PermissionMasterToUserPermission", fields: [permissionUuid], references: [uuid])
-  LtmsUser         LtmsUser         @relation(name: "LtmsUserToUserPermission", fields: [userUuid], references: [uuid])
+    uuid           String           @id @db.Char(36)
+    useridfk       String           @db.VarChar(255)
+    permissionidfk String           @db.VarChar(255)
+    created_at     DateTime?        @db.Timestamp(0)
+    updated_at     DateTime?        @db.Timestamp(0)
+    permissions    PermissionMaster @relation(fields: [permissionidfk], references: [uuid], onUpdate: NoAction)
+    users          Arguser          @relation(fields: [useridfk], references: [uuid], onUpdate: NoAction)
 }
 
-model DefaultRolePermission {
-  uuid           String   @id @default(uuid()) // UUID as a unique field
-  userRoleUuid   String
-  permissionUuid String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  UserRole       UserRole @relation(fields: [userRoleUuid], references: [uuid])
+//Proposal Data Models
+model Proposal {
+    uuid                    String                 @id @default(uuid())
+    proposalcode            String
+    grantnofk               String
+    departmentidfk          String                 @db.Char(36)
+    useridfk                String                 @db.Char(36)
+    pfnofk                  String                 @db.VarChar(255)
+    themefk                 String
+    submittedstatus         Boolean                @default(false)
+    receivedstatus          Boolean                @default(false)
+    caneditstatus           Boolean                @default(true)
+    approvalstatus          String                 @default("Pending") @db.VarChar(255)
+    highqualification       String                 @db.VarChar(255)
+    officephone             String                 @db.VarChar(255)
+    cellphone               String                 @db.VarChar(255)
+    faxnumber               String                 @db.VarChar(255)
+    researchtitle           String?                @db.VarChar(255)
+    commencingdate          DateTime?              @db.Date
+    terminationdate         DateTime?              @db.Date
+    objectives              String?                @db.Text
+    hypothesis              String?                @db.Text
+    significance            String?                @db.Text
+    ethicals                String?                @db.Text
+    expoutput               String?                @db.Text
+    socio_impact            String?                @db.Text
+    res_findings            String?                @db.Text
+    comment                 String?                @db.Text
+    approvedrejectedbywhofk String?                @db.Char(36)
+    created_at              DateTime?              @db.Timestamp(0)
+    updated_at              DateTime?              @db.Timestamp(0)
+    collaborators           ProposalCollaborator[]
+    expenditures            ProposalExpenditure[]
+    proposalchanges         ProposalChange[]
+    departments             OrgDepartment          @relation(fields: [departmentidfk], references: [uuid], onUpdate: NoAction)
+    grants                  ResearchGrant          @relation(fields: [grantnofk], references: [uuid], onUpdate: NoAction)
+    researchthemes          ResearchTheme          @relation(fields: [themefk], references: [uuid], onUpdate: NoAction)
+    publications            ProposalPublication[]
+    researchdesigns         ResearchDesign[]
+    workplans               ProposalWorkplan[]
+
+    ResearchProject ResearchProject[]
 }
 
-//organisation
-model OrganisationDepartment {
-  uuid         String          @id @default(uuid())
-  name         String          @unique
-  activeStatus Boolean         @default(false)
-  description  String
-  Users        LtmsUser[]
-  Letters      LetterRequest[] @relation("LetterDepartment")
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
-  RecipientsMaster RecipientsMaster[] @relation(name: "Departmentofrecipient")
-
-  DraftedLetterRequest DraftedLetterRequest[] @relation("LetterDepartment")
+model ProposalCollaborator {
+    uuid             String    @id @default(uuid())
+    proposalidfk     String
+    collaboratorname String    @db.VarChar(255)
+    position         String    @db.VarChar(255)
+    institution      String    @db.VarChar(255)
+    researcharea     String    @db.VarChar(255)
+    experience       String    @db.VarChar(255)
+    created_at       DateTime? @db.Timestamp(0)
+    updated_at       DateTime? @db.Timestamp(0)
+    proposals        Proposal  @relation(fields: [proposalidfk], references: [uuid], onUpdate: NoAction)
 }
 
-model DepartmentRole {
-  uuid        String   @id @default(uuid()) // UUID as a unique field
-  name        String   @unique
-  description String?
-  // users       LtmsUser[]
-  // permissions Permission[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+model ProposalExpenditure {
+    uuid         String    @id @default(uuid())
+    proposalidfk String
+    item         String    @db.VarChar(255)
+    itemtype     String    @db.VarChar(255)
+    quantity     Int
+    unitprice    Decimal   @db.Decimal(8, 2)
+    total        Decimal   @db.Decimal(15, 2)
+    created_at   DateTime? @db.Timestamp(0)
+    updated_at   DateTime? @db.Timestamp(0)
+    proposals    Proposal  @relation(fields: [proposalidfk], references: [uuid], onUpdate: NoAction)
 }
 
-model LetterCategory {
-  uuid        String          @id @default(uuid()) // UUID as a unique field
-  name        String
-  description String?
-  isretired   Boolean         @default(false)
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  Letter      LetterRequest[]
-
-  DraftedLetterRequest DraftedLetterRequest[]
+model ResearchGrant {
+    uuid       String        @id @default(uuid())
+    title      String        @db.VarChar(255)
+    finyearfk  String
+    status     String        @db.VarChar(255)
+    created_at DateTime?     @db.Timestamp(0)
+    updated_at DateTime?     @db.Timestamp(0)
+    finyears   FinancialYear @relation(fields: [finyearfk], references: [uuid], onUpdate: NoAction)
+    proposals  Proposal[]
 }
 
-//letter request
-model LetterRequest {
-  uuid                 String                 @id @default(uuid())
-  externalReference    String?
-  subject              String
-  body                 String                 @db.Text
-  letterIsArchived     Boolean                @default(false)
-  senderType           String
-  rootLetterUuid       String? // Nullable to allow root letters
-  RootLetter           LetterRequest?         @relation("RootChild", fields: [rootLetterUuid], references: [uuid])
-  parentLetterUuid     String? // Nullable to allow parent letters
-  ParentLetter         LetterRequest?         @relation("ParentChild", fields: [parentLetterUuid], references: [uuid])
-  letterCategoryUuid   String
-  LetterCategory       LetterCategory         @relation(fields: [letterCategoryUuid], references: [uuid])
-  senderUserUuid       String
-  SenderUser           LtmsUser               @relation("LetterSender", fields: [senderUserUuid], references: [uuid])
-  senderDepartmentUuid String
-  SenderDepartment     OrganisationDepartment @relation("LetterDepartment", fields: [senderDepartmentUuid], references: [uuid])
-  Attachments          Attachment[]
-  Logs                 Log[]
-  LetterRecipients     LetterRecipient[]      @relation(name: "LetterstoRecipients")
-  createdAt            DateTime               @default(now())
-  updatedAt            DateTime               @updatedAt
-  LetterTicket         LetterTicket[]         @relation(name: "LetterTicket")
-  ParentChildLetters   LetterRequest[]        @relation("ParentChild") // One-to-many self-relation
-  RootChildLetters     LetterRequest[]        @relation("RootChild")
+model ProposalChange {
+    uuid            String    @id @default(uuid())
+    proposalidfk    String
+    triggerissue    String    @db.Text
+    suggestedchange String    @db.Text
+    suggestedbyfk   String    @db.VarChar(255)
+    status          String    @db.VarChar(255)
+    created_at      DateTime? @db.Timestamp(0)
+    updated_at      DateTime? @db.Timestamp(0)
+    proposals       Proposal  @relation(fields: [proposalidfk], references: [uuid], onUpdate: NoAction)
 }
 
-model DraftedLetterRequest {
-  uuid                 String                 @id @default(uuid())
-  externalReference    String?
-  subject              String?
-  body                 String?
-  confidentiality      String?
-  senderType           String?
-  letterCategoryUuid   String?
-  LetterCategory       LetterCategory?        @relation(fields: [letterCategoryUuid], references: [uuid])
-  senderUserUuid       String
-  SenderUser           LtmsUser               @relation("LetterSender", fields: [senderUserUuid], references: [uuid])
-  senderDepartmentUuid String
-  SenderDepartment     OrganisationDepartment @relation("LetterDepartment", fields: [senderDepartmentUuid], references: [uuid])
-  Attachments          Attachment[]
-  Logs                 Log[]
-  LetterRecipients     LetterRecipient[]      @relation(name: "LetterstoRecipients")
-  createdAt            DateTime               @default(now())
-  updatedAt            DateTime               @updatedAt
+model ProposalPublication {
+    uuid         String    @id @default(uuid())
+    proposalidfk String
+    authors      String    @db.VarChar(255)
+    year         String    @db.VarChar(255)
+    title        String    @db.VarChar(255)
+    researcharea String    @db.VarChar(255)
+    publisher    String    @db.VarChar(255)
+    volume       String    @db.VarChar(255)
+    pages        Int
+    created_at   DateTime? @db.Timestamp(0)
+    updated_at   DateTime? @db.Timestamp(0)
+    proposals    Proposal  @relation(fields: [proposalidfk], references: [uuid], onUpdate: NoAction)
 }
 
-model RecipientsMaster {
-  uuid                String                  @id @default(uuid()) // UUID as a unique field
-  departmentUuid      String
-  userPersonUuid      String?                 @unique
-  recipientType       String
-  isActive            Boolean                 @default(true)
-  createdAt           DateTime                @default(now())
-  updatedAt           DateTime                @updatedAt
-  DepartmentRecipient OrganisationDepartment? @relation(name: "Departmentofrecipient", fields: [departmentUuid], references: [uuid])
-  UserPersonRecipient LtmsUser?               @relation(name: "UserPerosnofrecipient", fields: [userPersonUuid], references: [uuid])
-  LetterRecipients    LetterRecipient[]
+model ResearchDesign {
+    uuid         String    @id @default(uuid())
+    proposalidfk String
+    summary      String    @db.VarChar(255)
+    indicators   String    @db.Text
+    verification String    @db.VarChar(255)
+    assumptions  String    @db.Text
+    goal         String    @db.VarChar(255)
+    purpose      String    @db.VarChar(255)
+    created_at   DateTime? @db.Timestamp(0)
+    updated_at   DateTime? @db.Timestamp(0)
+    proposals    Proposal  @relation(fields: [proposalidfk], references: [uuid], onUpdate: NoAction)
 }
 
-model LetterRecipient {
-  uuid                 String                 @id @default(uuid()) // UUID as a unique field
-  letterUuid           String
-  recipientUuid        String
-  status               String
-  createdAt            DateTime               @default(now())
-  updatedAt            DateTime               @updatedAt
-  Letter               LetterRequest          @relation(name: "LetterstoRecipients", fields: [letterUuid], references: [uuid])
-  RecipientMaster      RecipientsMaster       @relation(fields: [recipientUuid], references: [uuid])
-  DraftedLetterRequest DraftedLetterRequest[] @relation(name: "LetterstoRecipients")
-
-  @@unique([letterUuid, recipientUuid]) // Composite primary key
+model ResearchFunding {
+    uuid             String          @id @default(uuid())
+    researchidfk     String
+    createdby        String          @db.Char(36)
+    amount           Float
+    created_at       DateTime?       @db.Timestamp(0)
+    updated_at       DateTime?       @db.Timestamp(0)
+    users            Arguser         @relation(fields: [createdby], references: [uuid], onUpdate: NoAction)
+    researchprojects ResearchProject @relation(fields: [researchidfk], references: [uuid], onUpdate: NoAction)
 }
 
-model Attachment {
-  id             String        @id @default(uuid())
-  letterUuid     String
-  letter         LetterRequest @relation(fields: [letterUuid], references: [uuid])
-  fileUrl        String
-  fileType       String
-  systemFileName String
-  userFileName   String
-
-  createdAt DateTime @default(now())
-
-  DraftedLetterRequest DraftedLetterRequest[]
+model ResearchProgress {
+    uuid             String          @id @default(uuid())
+    researchidfk     String
+    reportedbyfk     String          @db.Char(36)
+    report           String          @db.Text
+    created_at       DateTime?       @db.Timestamp(0)
+    updated_at       DateTime?       @db.Timestamp(0)
+    users            Arguser         @relation(fields: [reportedbyfk], references: [uuid], onUpdate: NoAction)
+    researchprojects ResearchProject @relation(fields: [researchidfk], references: [uuid], onUpdate: NoAction)
 }
 
-model LetterTicket {
-  uuid                    String        @id @default(uuid()) // UUID as a unique field
-  letterUuid              String        @unique
-  userCreatingTicketUuuid String
-  ticketNumber            String        @unique
-  ticketClosed            Boolean       @default(false)
-  createdAt               DateTime      @default(now())
-  updatedAt               DateTime      @updatedAt
-  Letter                  LetterRequest @relation(name: "LetterTicket", fields: [letterUuid], references: [uuid])
-  UserCreating            LtmsUser      @relation(name: "userCreatingTicket", fields: [userCreatingTicketUuuid], references: [uuid])
+model ResearchProject {
+    uuid                String                @id @default(uuid())
+    researchnumber      String
+    proposalidfk        String
+    projectstatus       String                @default("active") @db.VarChar(255)
+    ispaused            Boolean               @default(false)
+    supervisorfk        String?               @db.VarChar(255)
+    fundingfinyearfk    String
+    created_at          DateTime?             @db.Timestamp(0)
+    updated_at          DateTime?             @db.Timestamp(0)
+    researchfundings    ResearchFunding[]
+    researchprogress    ResearchProgress[]
+    finyears            FinancialYear         @relation(fields: [fundingfinyearfk], references: [uuid], onUpdate: NoAction)
+    proposals           Proposal              @relation(fields: [proposalidfk], references: [uuid], onUpdate: NoAction)
+    users               Arguser?              @relation(fields: [supervisorfk], references: [uuid], onDelete: Restrict, onUpdate: NoAction)
+    supervisionprogress SupervisionProgress[]
 }
 
-model UserGroup {
-  uuid    String            @id @default(uuid())
-  name    String            @unique
-  members UserGroupMember[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model ResearchTheme {
+    uuid             String     @id @default(uuid())
+    themeName        String
+    themeDescription String     @db.Text
+    applicableStatus String     @db.VarChar(255)
+    created_at       DateTime?  @db.Timestamp(0)
+    updated_at       DateTime?  @db.Timestamp(0)
+    proposals        Proposal[]
 }
 
-model UserGroupMember {
-  id        String    @id @default(uuid())
-  userUuid  String
-  user      LtmsUser  @relation(fields: [userUuid], references: [uuid])
-  groupUuid String
-  group     UserGroup @relation(fields: [groupUuid], references: [uuid])
+model SupervisionProgress {
+    uuid             String          @id @default(uuid())
+    researchidfk     String
+    supervisorfk     String          @db.Char(36)
+    report           String          @db.Text
+    remark           String          @db.Text
+    created_at       DateTime?       @db.Timestamp(0)
+    updated_at       DateTime?       @db.Timestamp(0)
+    researchprojects ResearchProject @relation(fields: [researchidfk], references: [uuid], onUpdate: NoAction)
+    users            Arguser         @relation(fields: [supervisorfk], references: [uuid], onUpdate: NoAction)
 }
 
-enum LetterStatus {
-  PENDING
-  APPROVED
-  REJECTED
-  FORWARDED
-  COMPLETED
+model ProposalWorkplan {
+    uuid         String    @id @db.VarChar(255)
+    proposalidfk String
+    activity     String    @db.VarChar(255)
+    time         String    @db.VarChar(255)
+    input        String    @db.VarChar(255)
+    facilities   String    @db.VarChar(255)
+    bywhom       String    @db.VarChar(255)
+    outcome      String    @db.VarChar(255)
+    created_at   DateTime? @db.Timestamp(0)
+    updated_at   DateTime? @db.Timestamp(0)
+    proposals    Proposal  @relation(fields: [proposalidfk], references: [uuid], onUpdate: NoAction)
+}
+
+//Administration
+model OrgSchool {
+    uuid        String          @id @default(uuid())
+    schoolname  String          @db.VarChar(255)
+    description String          @db.VarChar(255)
+    created_at  DateTime?       @db.Timestamp(0)
+    updated_at  DateTime?       @db.Timestamp(0)
+    departments OrgDepartment[]
+}
+
+model OrgDepartment {
+    uuid        String     @id @default(uuid())
+    schoolfk    String     @db.Char(36)
+    shortname   String     @db.VarChar(255)
+    description String     @db.VarChar(255)
+    created_at  DateTime?  @db.Timestamp(0)
+    updated_at  DateTime?  @db.Timestamp(0)
+    schools     OrgSchool  @relation(fields: [schoolfk], references: [uuid], onUpdate: NoAction)
+    proposals   Proposal[]
+}
+
+model FinancialYear {
+    uuid             String            @id @default(uuid())
+    finyear          String
+    startdate        DateTime?         @db.Date
+    enddate          DateTime?         @db.Date
+    description      String?           @db.VarChar(255)
+    created_at       DateTime?         @db.Timestamp(0)
+    updated_at       DateTime?         @db.Timestamp(0)
+    grants           ResearchGrant[]
+    researchprojects ResearchProject[]
+}
+
+model FailedJob {
+    uuid       String   @id @default(uuid())
+    connection String   @db.Text
+    queue      String   @db.Text
+    payload    String   @db.LongText
+    exception  String   @db.LongText
+    failed_at  DateTime @default(now()) @db.Timestamp(0)
+}
+
+model GlobalSetting {
+    uuid       String    @id @default(uuid())
+    item       String    @db.VarChar(255)
+    value1     String    @db.VarChar(255)
+    value2     String?   @db.VarChar(255)
+    created_at DateTime? @db.Timestamp(0)
+    updated_at DateTime? @db.Timestamp(0)
+}
+
+model QueueJob {
+    uuid         String @id @default(uuid())
+    queue        String @db.VarChar(255)
+    payload      String @db.LongText
+    attempts     Int    @db.UnsignedTinyInt
+    reserved_at  Int?   @db.UnsignedInt
+    available_at Int    @db.UnsignedInt
+    created_at   Int    @db.UnsignedInt
 }
 
 //Notifications
-model NotificationMaster {
-  uuid               String         @id @default(uuid())
-  codeName           String         @unique
-  commonName         String         @unique
-  description        String?
-  isEnabled          Boolean        @default(true)
-  createdAt          DateTime       @default(now())
-  updatedAt          DateTime       @updatedAt
-  ChildNotifications Notification[] @relation(name: "NotificationMasterToNotificationItem")
+model NotifiableUser {
+    uuid              String           @id @default(uuid())
+    notificationfk    String           @db.Char(36)
+    useridfk          String           @db.Char(36)
+    created_at        DateTime?        @db.Timestamp(0)
+    updated_at        DateTime?        @db.Timestamp(0)
+    notificationtypes NotificationType @relation(fields: [notificationfk], references: [uuid], onUpdate: NoAction)
+    users             Arguser          @relation(fields: [useridfk], references: [uuid], onUpdate: NoAction)
 }
 
-model Notification {
-  uuid                   String              @id @default(uuid())
-  userUuid               String
-  UserToNotify           LtmsUser            @relation(fields: [userUuid], references: [uuid])
-  message                String
-  read                   Boolean             @default(false)
-  notificationMasterUuid String
-  sentAt                 DateTime            @default(now())
-  createdAt              DateTime            @default(now())
-  updatedAt              DateTime            @updatedAt
-  NotificationMaster     NotificationMaster? @relation(name: "NotificationMasterToNotificationItem", fields: [notificationMasterUuid], references: [uuid])
-}
-
-enum NotificationType {
-  EMAIL
-  SMS
-  SYSTEM
-}
-
-model Log {
-  id         String        @id @default(uuid())
-  letterUuid String
-  letter     LetterRequest @relation(fields: [letterUuid], references: [uuid])
-  userUuid   String
-  user       LtmsUser      @relation(fields: [userUuid], references: [uuid])
-  action     String
-
-  createdAt DateTime @default(now())
-
-  DraftedLetterRequest DraftedLetterRequest[]
+model NotificationType {
+    uuid            String           @id @default(uuid())
+    typename        String
+    notifyowner     Boolean          @default(false)
+    description     String?          @db.Text
+    notifiableusers NotifiableUser[]
 }
